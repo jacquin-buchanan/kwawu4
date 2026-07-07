@@ -1,6 +1,6 @@
 // The Kwawu 4.0 prosthetic Arm - Socket Version
 // By Jacqun Buchanan
-// Parameteric 3-d printable prosthetic arm
+// Parametric 3-d printable prosthetic arm
 //
 // This design is licensed under the Creative Commons - Attribution - Share Alike license.
 
@@ -78,276 +78,218 @@ ArmLengthScale = ArmLength/271;
 
 
 WristBoltDia = 18;
+
+// Shared wrist center values used across palm/button/cover geometry.
+WRIST_X = 2.513 * HandScale;
+WRIST_Y = 14.753 * HandScale;
+WRIST_Z_BASE = -(21.5 * HandScale);
+
+// Shared transform to place vent hole imports onto the sculpted arm shell.
+VENT_ROTATION = [0, 0, -110];
+VENT_TRANSLATION = [-2.5 * ForeArmCircumferenceScale, -14.7 * ForeArmCircumferenceScale, -302 * ArmLengthScale];
+
 $fn=30;
 
-if(Part == "Cuff1") {
+module mirror_for_left() {
     if (LeftRight == "Left") {
-        mirror([1,0,0]) MakeCuff1();
-    }else {
-        MakeCuff1();
-    }
-}
-
-if(Part == "Cuff2") {
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) MakeCuff2();
+        mirror([1,0,0]) children();
     } else {
-        MakeCuff2();
+        children();
     }
 }
 
-if(Part == "Cuff3") {
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) MakeCuff3();
+module mirror_for_right() {
+    if (LeftRight == "Right") {
+        mirror([1,0,0]) children();
     } else {
-        MakeCuff3();
+        children();
     }
 }
 
-if(Part== "Cuff Leather Template")
-    {
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) MakeCuffLeatherTemplate();
+MIRROR_NONE = 0;
+MIRROR_LEFT = 1;
+MIRROR_RIGHT = 2;
+
+PART_NAME = 0;
+PART_HANDLER = 1;
+PART_MIRROR = 2;
+PART_ROTATION = 3;
+
+H_CUFF1 = 0;
+H_CUFF2 = 1;
+H_CUFF3 = 2;
+H_CUFF_LEATHER_TEMPLATE = 3;
+H_ARM_UPPER = 4;
+H_ARM_LOWER = 5;
+H_RATCHET = 6;
+H_TENSIONER_PROBE = 7;
+H_SA_TENSIONER_LEVER = 8;
+H_EA_TENSIONER_LEVER = 9;
+H_EA_TENSIONER_HOLD = 10;
+H_SA_TENSIONER_HOLD = 11;
+H_CUFF2_HUB = 12;
+H_GRASP_LATCH_BASE = 13;
+H_GRASP_LATCH_PROBE = 14;
+H_PALM_BOLT = 15;
+H_PALM = 16;
+H_WRIST_BUTTON = 17;
+H_WRIST_COVER = 18;
+H_PALM_TOP = 19;
+H_INDEX_FINGER_END = 20;
+H_INDEX_FINGER_PHALANX = 21;
+H_MIDDLE_FINGER_END = 22;
+H_MIDDLE_FINGER_PHALANX = 23;
+H_PINKY_FINGER_END = 24;
+H_PINKY_FINGER_PHALANX = 25;
+H_RING_FINGER_END = 26;
+H_RING_FINGER_PHALANX = 27;
+H_THUMB_END = 28;
+H_THUMB_PHALANX = 29;
+H_WHIPPLETREE_PRIMARY = 30;
+H_WHIPPLETREE_SECONDARY = 31;
+H_PENCIL_HOLDER_COVER = 32;
+H_HINGES = 33;
+
+PART_SPECS = [
+    ["Cuff1", H_CUFF1, MIRROR_LEFT, [0,0,0]],
+    ["Cuff2", H_CUFF2, MIRROR_LEFT, [0,0,0]],
+    ["Cuff3", H_CUFF3, MIRROR_LEFT, [0,0,0]],
+    ["Cuff Leather Template", H_CUFF_LEATHER_TEMPLATE, MIRROR_LEFT, [0,0,0]],
+    ["Upper Arm", H_ARM_UPPER, MIRROR_LEFT, [0,0,0]],
+    ["Lower Arm", H_ARM_LOWER, MIRROR_LEFT, [0,0,0]],
+    ["Ratchet", H_RATCHET, MIRROR_LEFT, [0,0,0]],
+    ["Tensioner Probe", H_TENSIONER_PROBE, MIRROR_LEFT, [0,0,0]],
+    // This part was modeled as left, so mirror for right.
+    ["SA Tensioner Lever", H_SA_TENSIONER_LEVER, MIRROR_RIGHT, [0,0,0]],
+    ["EA Tensioner Lever", H_EA_TENSIONER_LEVER, MIRROR_LEFT, [0,0,0]],
+    ["EA Tensioner Hold", H_EA_TENSIONER_HOLD, MIRROR_LEFT, [0,0,0]],
+    ["SA Tensioner Hold", H_SA_TENSIONER_HOLD, MIRROR_LEFT, [0,0,0]],
+    ["Cuff2 Hub", H_CUFF2_HUB, MIRROR_LEFT, [0,0,0]],
+    ["Grasp Latch Base", H_GRASP_LATCH_BASE, MIRROR_LEFT, [0,0,0]],
+    ["Grasp Latch Probe", H_GRASP_LATCH_PROBE, MIRROR_LEFT, [0,0,0]],
+    ["Palm Bolt", H_PALM_BOLT, MIRROR_LEFT, [180,0,0]],
+    ["Palm", H_PALM, MIRROR_LEFT, [0,0,0]],
+    // Rotate to orient for printing.
+    ["Wrist Button", H_WRIST_BUTTON, MIRROR_LEFT, [180,0,0]],
+    ["Wrist Cover", H_WRIST_COVER, MIRROR_NONE, [0,0,0]],
+    // Rotate to orient for printing.
+    ["Palm Top", H_PALM_TOP, MIRROR_LEFT, [90,7,0]],
+    ["Index Finger End", H_INDEX_FINGER_END, MIRROR_LEFT, [0,0,0]],
+    ["Index Finger Phalanx", H_INDEX_FINGER_PHALANX, MIRROR_LEFT, [0,0,0]],
+    ["Middle Finger End", H_MIDDLE_FINGER_END, MIRROR_LEFT, [0,0,0]],
+    ["Middle Finger Phalanx", H_MIDDLE_FINGER_PHALANX, MIRROR_LEFT, [0,0,0]],
+    ["Pinky Finger End", H_PINKY_FINGER_END, MIRROR_LEFT, [0,0,0]],
+    ["Pinky Finger Phalanx", H_PINKY_FINGER_PHALANX, MIRROR_LEFT, [0,0,0]],
+    ["Ring Finger End", H_RING_FINGER_END, MIRROR_LEFT, [0,0,0]],
+    ["Ring Finger Phalanx", H_RING_FINGER_PHALANX, MIRROR_LEFT, [0,0,0]],
+    ["Thumb End", H_THUMB_END, MIRROR_LEFT, [0,0,0]],
+    ["Thumb Phalanx", H_THUMB_PHALANX, MIRROR_LEFT, [0,0,0]],
+    ["Whippletree Primary", H_WHIPPLETREE_PRIMARY, MIRROR_LEFT, [180,0,0]],
+    ["Whippletree Secondary", H_WHIPPLETREE_SECONDARY, MIRROR_LEFT, [0,0,0]],
+    ["Pencil Holder Cover", H_PENCIL_HOLDER_COVER, MIRROR_NONE, [0,0,0]],
+    ["Hinges", H_HINGES, MIRROR_NONE, [0,0,0]]
+];
+
+function find_part_index(part_name) =
+    let(matches = search([part_name], [for (spec = PART_SPECS) spec[PART_NAME]]))
+    len(matches) > 0 ? matches[0] : -1;
+
+module apply_mirror(mirror_mode) {
+    if (mirror_mode == MIRROR_LEFT) {
+        mirror_for_left() children();
+    } else if (mirror_mode == MIRROR_RIGHT) {
+        mirror_for_right() children();
     } else {
-        MakeCuffLeatherTemplate();
+        children();
     }
 }
 
-if(Part == "Upper Arm") {
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) MakeArmUpper();
-    } else {
-         MakeArmUpper();
+module apply_venting_transform() {
+    rotate(VENT_ROTATION)
+        translate(VENT_TRANSLATION)
+            mirror([0,0,1])
+                children();
+}
+
+module render_upper_venting() {
+    if(UpperVentingHoles == "VentingHoles1") {
+        VentingHoles12();
+    }
+
+    if(UpperVentingHoles == "VentingHoles2") {
+        VentingHoles22();
+    }
+
+    if(UpperVentingHoles == "VentingHoles3") {
+        VentingHoles32();
     }
 }
 
-if(Part == "Lower Arm") {
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) MakeArmLower();
-    } else {
-        MakeArmLower();
+module render_lower_venting() {
+    if(LowerVentingHoles == "VentingHoles1") {
+        VentingHoles11();
+    }
+
+    if(LowerVentingHoles == "VentingHoles2") {
+        VentingHoles21();
+    }
+
+    if(LowerVentingHoles == "VentingHoles3") {
+        VentingHoles31();
     }
 }
 
-
-if(Part == "Ratchet") {
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) MakeRatchet();
-    } else {
-        MakeRatchet();
-    }
-}
-
-if(Part == "Tensioner Probe") {
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) MakeTensionerProbe(); 
-    } else {
-        MakeTensionerProbe(); 
-    }
-}
-    
-if(Part == "SA Tensioner Lever")  {
-    if (LeftRight == "Left") {
-        MakeSATensionerLever();
-    } else {
-        //Oops I modled left not right
-        mirror([1,0,0]) MakeSATensionerLever();
-    }
-}
-
-if(Part == "EA Tensioner Lever")  {
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) MakeEATensionerLever();
-    } else {
-        MakeEATensionerLever();
-    }
-}
-
-if(Part == "EA Tensioner Hold")  {
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) MakeEATensionerHold();
-    } else {
-        MakeEATensionerHold();
-    }
-}
-
-
-if(Part == "SA Tensioner Hold")  {
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) MakeSATensionerHold();
-    } else {
-        MakeSATensionerHold();
-    }
-}
-
-if(Part == "Cuff2 Hub") {
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) MakeCuff2Hub();
-    } else {
-        MakeCuff2Hub();
-    }
-}
-
-if(Part == "Grasp Latch Base") {
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) MakeGraspLatchBase();
-    } else {
-        MakeGraspLatchBase();
-    }
-}
-
-if(Part == "Grasp Latch Probe") {
-    if (LeftRight == "Left") {
-        mirror([1,0,0])  MakeLatchProbe();
-    } else {
-        MakeLatchProbe();
-    }
-}
-
-if(Part == "Palm Bolt"){
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) rotate(a=[180,0,0])MakePalmBolt();
-    } else {
-        rotate(a=[180,0,0])MakePalmBolt();
-    }
-}
-
-if (Part == "Palm") {
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) MakePalm();
-    } else {
-        MakePalm();
-    }
-}
-
-if(Part =="Wrist Button")
-{
-    //Rotate just to orient for printing
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) rotate(a=[180,0,0])MakeWristButton();
-    } else {
-    
-        rotate(a=[180,0,0])MakeWristButton();
-    }
-}
-
-if(Part =="Wrist Cover")
-{
+module run_part_handlers() {
+    MakeCuff1();
+    MakeCuff2();
+    MakeCuff3();
+    MakeCuffLeatherTemplate();
+    MakeArmUpper();
+    MakeArmLower();
+    MakeRatchet();
+    MakeTensionerProbe();
+    MakeSATensionerLever();
+    MakeEATensionerLever();
+    MakeEATensionerHold();
+    MakeSATensionerHold();
+    MakeCuff2Hub();
+    MakeGraspLatchBase();
+    MakeLatchProbe();
+    MakePalmBolt();
+    MakePalm();
+    MakeWristButton();
     MakeWristCover();
-    
-}
-
-if (Part == "Palm Top") {
-    //Rotate just to orient for printing
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) rotate(a=[90,7,]) MakePalmTop();
-    } else {
-        rotate(a=[90,7,0])MakePalmTop();
-    }
-}
-
-if(Part == "Index Finger End") {  
-    if (LeftRight == "Left") {
-        mirror([1,0,0]) IndexFingerEnd();
-       } else {
-        IndexFingerEnd();
-    }
-}
-
-if(Part == "Index Finger Phalanx") { 
-     if (LeftRight == "Left") {
-        mirror([1,0,0]) IndexFingerPhalanx();
-       } else {
-        IndexFingerPhalanx();
-    }
-}
-        
-if(Part == "Middle Finger End") { 
-     if (LeftRight == "Left") {
-        mirror([1,0,0]) MiddleFingerEnd();
-       } else {
-        MiddleFingerEnd();
-    }
-}
-            
-if(Part == "Middle Finger Phalanx") { 
-     if (LeftRight == "Left") {
-        mirror([1,0,0]) MiddleFingerPhalanx();
-       } else {
-        MiddleFingerPhalanx();
-    }
-}
-                
-if(Part == "Pinky Finger End") { 
-     if (LeftRight == "Left") {
-        mirror([1,0,0]) PinkyFingerEnd();
-       } else {
-        PinkyFingerEnd();
-    }
-}
-
-if(Part == "Pinky Finger Phalanx") { 
-     if (LeftRight == "Left") {
-        mirror([1,0,0]) PinkyFingerPhalanx();
-       } else {
-        PinkyFingerPhalanx();
-    }
-}
-
-if(Part == "Ring Finger End") { 
-     if (LeftRight == "Left") {
-        mirror([1,0,0]) RingFingerEnd();
-       } else {
-        RingFingerEnd();
-    }
-}
-
-if(Part == "Ring Finger Phalanx") { 
-     if (LeftRight == "Left") {
-        mirror([1,0,0]) RingFingerPhalanx();
-       } else {
-        RingFingerPhalanx();
-    }
-}
-
-if(Part == "Thumb End") { 
-     if (LeftRight == "Left") {
-        mirror([1,0,0]) ThumbEnd();
-       } else {
-        ThumbEnd();
-    }
-}
-
-if(Part == "Thumb Phalanx") { 
-     if (LeftRight == "Left") {
-        mirror([1,0,0]) ThumbPhalanx();
-       } else {
-        ThumbPhalanx();
-    }
-}
-
-if(Part == "Whippletree Primary") { 
-     if (LeftRight == "Left") {
-        mirror([1,0,0]) rotate(a=[180,0,0])WhippleTreePrimary();
-       } else {
-        rotate(a=[180,0,0])WhippleTreePrimary();
-    }
-}
-
-if(Part == "Whippletree Secondary") { 
-     if (LeftRight == "Left") {
-        mirror([1,0,0]) WhippleTreeSecondary();
-       } else {
-        WhippleTreeSecondary();
-    }
-}
-
-if(Part == "Pencil Holder Cover")
-{
+    MakePalmTop();
+    IndexFingerEnd();
+    IndexFingerPhalanx();
+    MiddleFingerEnd();
+    MiddleFingerPhalanx();
+    PinkyFingerEnd();
+    PinkyFingerPhalanx();
+    RingFingerEnd();
+    RingFingerPhalanx();
+    ThumbEnd();
+    ThumbPhalanx();
+    WhippleTreePrimary();
+    WhippleTreeSecondary();
     PencilHolderCover();
+    MakeHinges();
 }
 
-if(Part == "Hinges") { MakeHinges(); }
+module render_selected_part() {
+    part_index = find_part_index(Part);
+
+    if (part_index >= 0) {
+        selected_spec = PART_SPECS[part_index];
+        apply_mirror(selected_spec[PART_MIRROR])
+            rotate(a=selected_spec[PART_ROTATION])
+                children(selected_spec[PART_HANDLER]);
+    } else {
+        echo(str("Unknown Part: ", Part));
+    }
+}
+
+render_selected_part() run_part_handlers();
     
 //***************************
 // MakeHinges() 
@@ -402,18 +344,18 @@ module MakePalm() {
  
   
         // cut small hole all the way through wrist
-        translate([2.513 * HandScale, 14.753 * HandScale, -(21.5* HandScale) + (-2* HandScale)/2 ]) 
+        translate([WRIST_X, WRIST_Y, WRIST_Z_BASE + (-2 * HandScale) / 2 ]) 
         cylinder(d = 19, h = 46.00 * HandScale, center=true, $fn=60);
        
        //This is the thickness of the button ring that holds the teeth 
        ringthickness = max (2.0, 6 * HandScale* HandScale);
         
        // cut larger hole to hold the wrist cover
-        translate([2.513 * HandScale, 14.753 * HandScale, - (21.5* HandScale) + 4.25/2 ]) 
+        translate([WRIST_X, WRIST_Y, WRIST_Z_BASE + 4.25 / 2 ]) 
         cylinder(r = 10+ ringthickness + 4, h = 5, center=true, $fn=30);
         
         //Cut slot for button     
-        translate([2.513 * HandScale, 14.753 * HandScale, - (21.5* HandScale-4.25)]) {
+        translate([WRIST_X, WRIST_Y, WRIST_Z_BASE + 4.25]) {
             hull(){translate([0, -4.75, 0])linear_extrude(5.5) circle((20)/2 + ringthickness);
                 translate([0, 2.75, 0])linear_extrude(5.5) circle((20)/2 + ringthickness);
                 
@@ -425,18 +367,18 @@ module MakePalm() {
         }
             
         //Cut pin guide holes for Wrist cover
-        translate([2.513 * HandScale , 14.753 * HandScale, - (21.5* HandScale-4.5)]) {
+        translate([WRIST_X, WRIST_Y, WRIST_Z_BASE + 4.5]) {
             translate([ -(10 + ringthickness +2) + 3, 0, 0]) rotate(a=[90,-90,-90]) linear_extrude(5) polygon(points=[[0,-2.5],[5,0],[0,2.5]], paths=[[0,1,2]]);
             
             translate([ (10 + ringthickness +2)+2 , 0, 0]) rotate(a=[90,-90,-90]) linear_extrude(5) polygon(points=[[0,-2.5],[5,0],[0,2.5]], paths=[[0,1,2]]);
         }
         
         // cut square for button
-        translate([2.513 * HandScale, (14.753 * HandScale)+
-        250, - (21.5* HandScale) + 9.75/2 -.5 ]) 
+        translate([WRIST_X, WRIST_Y +
+        250, WRIST_Z_BASE + 9.75/2 -.5 ]) 
         cube([ 20.5, 500,9.75 +1], center=true);
   
-        // If the pencil Holder is seelcted then cut it out
+        // If the pencil holder is selected then cut it out
         if(PencilHolder =="Yes")
         {
             PencilHolderTool();
@@ -457,11 +399,11 @@ module MakeWristCover() {
 difference(){
     union() {
        // make the main ring that is the cover
-       translate([2.513 * HandScale, 14.753 * HandScale, - (21.5* HandScale) + 4.25/2 ]) 
+    translate([WRIST_X, WRIST_Y, WRIST_Z_BASE + 4.25 / 2 ]) 
         cylinder(r = 10+ ringthickness + 3.75, h = 4.25, center=true, $fn=30);
     
             //make pin guide holes
-        translate([2.513 * HandScale , 14.753 * HandScale, - (21.5* HandScale-4.5)]) {
+        translate([WRIST_X, WRIST_Y, WRIST_Z_BASE + 4.5]) {
             translate([ -(10 + ringthickness +2) + 1.5, 0, -1]) rotate(a=[90,-90,-90]) linear_extrude(3) polygon(points=[[0,-2],[4,0],[0,2]], paths=[[0,1,2]]);
             
             translate([ (10 + ringthickness +2)+1.5 , 0, -1]) rotate(a=[90,-90,-90]) linear_extrude(3) polygon(points=[[0,-2],[4,0],[0,2]], paths=[[0,1,2]]);
@@ -469,12 +411,12 @@ difference(){
     }
     
     // cut square for button
-    translate([2.513 * HandScale, (14.753 * HandScale)+
-        250 +10.5, - (21.5* HandScale) + 9.75/2 -.5 ]) 
+    translate([WRIST_X, WRIST_Y +
+        250 +10.5, WRIST_Z_BASE + 9.75/2 -.5 ]) 
         cube([ 20.5, 500,9.75 +1], center=true);
     
     // cut small hole all the way through wrist
-    translate([2.513 * HandScale, 14.753 * HandScale, -(21.5* HandScale) + (-2* HandScale)/2 ]) 
+    translate([WRIST_X, WRIST_Y, WRIST_Z_BASE + (-2 * HandScale) / 2 ]) 
         cylinder(d = 19, h = 36.00 * HandScale, center=true, $fn=60);
     
     }
@@ -488,14 +430,14 @@ module MakeWristButton() {
     intersection(){
         Palm();
         //  square to cut button top out of hand piece
-        translate([2.513 * HandScale, (14.753 * HandScale)+
-    250+13.95, - (21.5* HandScale) + 9.5/2 +.3]) 
+        translate([WRIST_X, (WRIST_Y)+
+    250+13.95, WRIST_Z_BASE + 9.5/2 +.3]) 
     cube([ 20, 500,8.5 ], center=true);
     }
 
     thickness = 4.8;
     //teeth
-    translate([2.513 * HandScale, 14.753 * HandScale, - (21.5* HandScale)]) {
+    translate([WRIST_X, WRIST_Y, WRIST_Z_BASE]) {
         translate([-6.75, -7.0, 14/2-.1]) cube([ 4, 3,thickness], center=true);
         translate([6.75, -7.0, 14/2-.1]) cube([ 4, 3,thickness], center=true);
         
@@ -509,7 +451,7 @@ module MakeWristButton() {
     //thicken the outside ring of the button
     ringthickness = max (2.0, 6 * HandScale* HandScale);
     
-    translate([2.513 * HandScale, 14.753 * HandScale, - (21.5* HandScale-4.5)])
+    translate([WRIST_X, WRIST_Y, WRIST_Z_BASE + 4.5])
     difference(){
         
         union(){
@@ -1114,45 +1056,13 @@ module MakeArmUpper() {
         }
         
                 
-    //We mirror and translate because the scultputre was done in reverse, for version 2, So i just moved it for this version rather than re-sculpt it.
-    rotate([0,0,-110])translate([ -2.5*ForeArmCircumferenceScale, -14.7*ForeArmCircumferenceScale, -302*ArmLengthScale]) mirror([0,0,1]) 
-    if(UpperVentingHoles != "None")
-        {
-        if(UpperVentingHoles == "VentingHoles1")
-        {
-            VentingHoles12();
-        }
-              
-        if(UpperVentingHoles == "VentingHoles2")
-        {
-           VentingHoles22();
-        }
-              
-         if(UpperVentingHoles == "VentingHoles3")
-         {
-            VentingHoles32();
-         }
-        }  
-        
-    //We mirror and translate because the scultputre was done in reverse, for version 2, So i just moved it for this version rather than re-sculpt it.
-    rotate([0,0,-110])translate([ -2.5*ForeArmCircumferenceScale, -14.7*ForeArmCircumferenceScale, -302*ArmLengthScale]) mirror([0,0,1]) 
-    if(LowerVentingHoles != "None")
-        {
-        if(LowerVentingHoles == "VentingHoles1")
-        {
-            VentingHoles11();
-        }
-              
-        if(LowerVentingHoles == "VentingHoles2")
-        {
-           VentingHoles21();
-        }
-              
-         if(LowerVentingHoles == "VentingHoles3")
-         {
-            VentingHoles31();
-         }
-        }
+    if(UpperVentingHoles != "None") {
+        apply_venting_transform() render_upper_venting();
+    }
+
+    if(LowerVentingHoles != "None") {
+        apply_venting_transform() render_lower_venting();
+    }
     }
    
     // Check if the upper arm is the entire arm
@@ -1353,45 +1263,13 @@ if(ArmSplitLength < ArmLength) {
     
     
      
-    //We mirror and translate because the scultpture was done in reverse, for version 2, So i just moved it for this version rather than re-sculpt it.
-    rotate([0,0,-110])translate([ -2.5*ForeArmCircumferenceScale, -14.7*ForeArmCircumferenceScale, -302*ArmLengthScale]) mirror([0,0,1]) 
-    if(UpperVentingHoles != "None")
-        {
-        if(UpperVentingHoles == "VentingHoles1")
-        {
-            VentingHoles12();
-        }
-              
-        if(UpperVentingHoles == "VentingHoles2")
-        {
-           VentingHoles22();
-        }
-              
-         if(UpperVentingHoles == "VentingHoles3")
-         {
-            VentingHoles32();
-         }
-        }
+    if(UpperVentingHoles != "None") {
+        apply_venting_transform() render_upper_venting();
+    }
 
-    //We mirror and translate because the scultputre was done in reverse, for version 2, So i just moved it for this version rather than re-sculpt it.
-    rotate([0,0,-110])translate([ -2.5*ForeArmCircumferenceScale, -14.7*ForeArmCircumferenceScale, -302*ArmLengthScale]) mirror([0,0,1]) 
-    if(LowerVentingHoles != "None")
-        {
-        if(LowerVentingHoles == "VentingHoles1")
-        {
-            VentingHoles11();
-        }
-              
-        if(LowerVentingHoles == "VentingHoles2")
-        {
-           VentingHoles21();
-        }
-              
-         if(LowerVentingHoles == "VentingHoles3")
-         {
-            VentingHoles31();
-         }
-        }        
+    if(LowerVentingHoles != "None") {
+        apply_venting_transform() render_lower_venting();
+    }
     }
 }
 

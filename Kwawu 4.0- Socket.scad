@@ -276,6 +276,80 @@ module run_part_handlers() {
     MakeHinges();
 }
 
+module run_part_handler(handler_index) {
+    if (handler_index == H_CUFF1) {
+        MakeCuff1();
+    } else if (handler_index == H_CUFF2) {
+        MakeCuff2();
+    } else if (handler_index == H_CUFF3) {
+        MakeCuff3();
+    } else if (handler_index == H_CUFF_LEATHER_TEMPLATE) {
+        MakeCuffLeatherTemplate();
+    } else if (handler_index == H_ARM_UPPER) {
+        MakeArmUpper();
+    } else if (handler_index == H_ARM_LOWER) {
+        MakeArmLower();
+    } else if (handler_index == H_RATCHET) {
+        MakeRatchet();
+    } else if (handler_index == H_TENSIONER_PROBE) {
+        MakeTensionerProbe();
+    } else if (handler_index == H_SA_TENSIONER_LEVER) {
+        MakeSATensionerLever();
+    } else if (handler_index == H_EA_TENSIONER_LEVER) {
+        MakeEATensionerLever();
+    } else if (handler_index == H_EA_TENSIONER_HOLD) {
+        MakeEATensionerHold();
+    } else if (handler_index == H_SA_TENSIONER_HOLD) {
+        MakeSATensionerHold();
+    } else if (handler_index == H_CUFF2_HUB) {
+        MakeCuff2Hub();
+    } else if (handler_index == H_GRASP_LATCH_BASE) {
+        MakeGraspLatchBase();
+    } else if (handler_index == H_GRASP_LATCH_PROBE) {
+        MakeLatchProbe();
+    } else if (handler_index == H_PALM_BOLT) {
+        MakePalmBolt();
+    } else if (handler_index == H_PALM) {
+        MakePalm();
+    } else if (handler_index == H_WRIST_BUTTON) {
+        MakeWristButton();
+    } else if (handler_index == H_WRIST_COVER) {
+        MakeWristCover();
+    } else if (handler_index == H_PALM_TOP) {
+        MakePalmTop();
+    } else if (handler_index == H_INDEX_FINGER_END) {
+        IndexFingerEnd();
+    } else if (handler_index == H_INDEX_FINGER_PHALANX) {
+        IndexFingerPhalanx();
+    } else if (handler_index == H_MIDDLE_FINGER_END) {
+        MiddleFingerEnd();
+    } else if (handler_index == H_MIDDLE_FINGER_PHALANX) {
+        MiddleFingerPhalanx();
+    } else if (handler_index == H_PINKY_FINGER_END) {
+        PinkyFingerEnd();
+    } else if (handler_index == H_PINKY_FINGER_PHALANX) {
+        PinkyFingerPhalanx();
+    } else if (handler_index == H_RING_FINGER_END) {
+        RingFingerEnd();
+    } else if (handler_index == H_RING_FINGER_PHALANX) {
+        RingFingerPhalanx();
+    } else if (handler_index == H_THUMB_END) {
+        ThumbEnd();
+    } else if (handler_index == H_THUMB_PHALANX) {
+        ThumbPhalanx();
+    } else if (handler_index == H_WHIPPLETREE_PRIMARY) {
+        WhippleTreePrimary();
+    } else if (handler_index == H_WHIPPLETREE_SECONDARY) {
+        WhippleTreeSecondary();
+    } else if (handler_index == H_PENCIL_HOLDER_COVER) {
+        PencilHolderCover();
+    } else if (handler_index == H_HINGES) {
+        MakeHinges();
+    } else {
+        echo(str("Unknown handler index: ", handler_index));
+    }
+}
+
 module render_selected_part() {
     part_index = find_part_index(Part);
 
@@ -283,13 +357,13 @@ module render_selected_part() {
         selected_spec = PART_SPECS[part_index];
         apply_mirror(selected_spec[PART_MIRROR])
             rotate(a=selected_spec[PART_ROTATION])
-                children(selected_spec[PART_HANDLER]);
+                run_part_handler(selected_spec[PART_HANDLER]);
     } else {
         echo(str("Unknown Part: ", Part));
     }
 }
 
-render_selected_part() run_part_handlers();
+render_selected_part();
     
 //***************************
 // MakeHinges() 
@@ -850,10 +924,12 @@ module MakeArmLoft(Circumferences, minCircumferenceScale, smoothness, isInnerLof
             
                 // Circumference interpolation index and blend factor
                 z = -ring[0].z,
-                indexCirc = (z > 25) ? floor(z / 25) : 0,
+                indexCircRaw = (z > 25) ? floor(z / 25) : 0,
+                indexCirc = min(indexCircRaw, len(Circumferences) - 1),
+                hasCircAtIndex = Circumferences[indexCirc] > 0,
                 
                 //The index of the last Circumference filled
-                h_index = Circumferences[indexCirc] > 0 ? indexCirc : max_index,
+                h_index = hasCircAtIndex ? indexCirc : max(0, max_index),
                 
                 diff = ((indexCirc+1)  - h_index) * 25,
                 
@@ -864,7 +940,7 @@ module MakeArmLoft(Circumferences, minCircumferenceScale, smoothness, isInnerLof
 
                 // Linear interpolation of scale between two circumference samples
                 scaleCirc = (
-                    indexCirc < len(Circumferences) - 1 && Circumferences[indexCirc] > 0
+                    indexCirc < len(Circumferences) - 1 && hasCircAtIndex
                 ) ? (
                     Circumferences[indexCirc] / circ * (1 - weightCirc)
                     + ((Circumferences[indexCirc + 1] < 1)
@@ -940,30 +1016,35 @@ module MakeArmUpper() {
 
     //The top of the socket is off center a little, compaired to the wrist
     elbowCenterOffset = 1.5*ForeArmCircumferenceScale;
+
+    elbowCentertoSocketCutTop = 13;
+    cornerRadius = 4;
+    blockThickness = 7;
+    bigBlockHeight = 55;
+    smallBlockHeight = 18;
+    blockWidth = 35;
     
     difference() {
         union(){
             difference() {
             
                 MakeArmLoft(outerShell, HandScale, 4, false);
+
+                // We cut the top off down from elbow center
+                translate([0,0,-elbowCentertoSocketCutTop])cube([2*ForearmDiameterWPadding,2*ForearmDiameterWPadding,elbowCentertoSocketCutTop],true);
                  
                 //clear out the top in a nice curved shape
-                elbowclearingtool = concat([[-ForearmDiameterWPadding/2-4*ArmShellThickness,  ElbowPartsScale*40]], smooth([ 
-                [-ForearmDiameterWPadding/2- 4*ArmShellThickness ,  -ElbowPartsScale*8],
-                [-ForearmDiameterWPadding/4, -ForearmDiameterWPadding/4],
-                [ForearmDiameterWPadding/4, -ForearmDiameterWPadding/4],
-            [ForearmDiameterWPadding/2+4*ArmShellThickness, -ElbowPartsScale*8]], 3, false),
-            [[ForearmDiameterWPadding/2+4*ArmShellThickness, ElbowPartsScale*40]]);
-        
-                difference() {
-                    union(){
-                    rotate(a=[85,0,0])translate([ 0, 0,-ForearmDiameterWPadding])linear_extrude(ForearmDiameterWPadding*2) polygon(elbowclearingtool);
-                    rotate(a=[120,0,180])linear_extrude(ForearmDiameterWPadding*2) polygon(elbowclearingtool);
-                    }
-                    translate([ 0 , 0, -ElbowPartsScale *20]) rotate(a=[90,0,90]) cylinder(d=ElbowPartsScale *40, h=ForearmDiameterWPadding * 2,center=true, $fn=40);
-                    translate([0,0,-29.75- ElbowPartsScale *20])cube([2*ForearmDiameterWPadding,ElbowPartsScale *40,59.5],true);
-                }
-                   
+                elbowclearingtool = concat([[-ForearmDiameterWPadding/2-4*ArmShellThickness,  ElbowPartsScale*40]], 
+                    smooth([
+                        [-ForearmDiameterWPadding/2- 4*ArmShellThickness ,  -ElbowPartsScale*8],
+                        [-ForearmDiameterWPadding/4, -ForearmDiameterWPadding/4],
+                        [ForearmDiameterWPadding/4, -ForearmDiameterWPadding/4],
+                        [ForearmDiameterWPadding/2+4*ArmShellThickness, -ElbowPartsScale*8]], 3, false),
+                    [[ForearmDiameterWPadding/2+4*ArmShellThickness, ElbowPartsScale*40]]);
+
+                translate([ 0, 10,0])rotate(a=[110,0,0])translate([ 0, 0,-ForearmDiameterWPadding])linear_extrude(ForearmDiameterWPadding*2) polygon(elbowclearingtool);
+                translate([ 0, 5,-ForearmDiameterWPadding/4])rotate(a=[120,0,180])linear_extrude(ForearmDiameterWPadding*2) polygon(elbowclearingtool);
+
                     
                 // CUT OFF the bottom half of the arm. 
                 // We make the arm in two parts. We had to loft the entire arm 
@@ -971,53 +1052,66 @@ module MakeArmUpper() {
                 translate([-ForearmDiameterWPadding, -ForearmDiameterWPadding, -ArmSplitLength-ArmLength])cube([ ForearmDiameterWPadding*2, ForearmDiameterWPadding*2, ArmLength], center= false);
             }
 
+            //Add a shape that allows the latch base to attach to
+
+            hull() {
+                translate([ForearmDiameterWPadding/2 + blockThickness - cornerRadius, blockWidth/2 - cornerRadius, -elbowCentertoSocketCutTop - cornerRadius])sphere(d=cornerRadius*2);
+                translate([ForearmDiameterWPadding/2 + blockThickness - cornerRadius, -blockWidth/2 + cornerRadius, -elbowCentertoSocketCutTop - cornerRadius])sphere(d=cornerRadius*2);
+
+                translate([ForearmDiameterWPadding/2 + blockThickness - cornerRadius, blockWidth/2 - cornerRadius, -elbowCentertoSocketCutTop + cornerRadius - bigBlockHeight])sphere(d=cornerRadius*2);
+                translate([ForearmDiameterWPadding/2 + blockThickness - cornerRadius, -blockWidth/2 + cornerRadius, -elbowCentertoSocketCutTop + cornerRadius - bigBlockHeight])sphere(d=cornerRadius*2);
+
+                translate([ForearmDiameterWPadding/4 , blockWidth/2 - cornerRadius, -elbowCentertoSocketCutTop - cornerRadius])sphere(d=cornerRadius*2);
+                translate([ForearmDiameterWPadding/4 , -blockWidth/2 + cornerRadius, -elbowCentertoSocketCutTop - cornerRadius])sphere(d=cornerRadius*2);
+
+                translate([ForearmDiameterWPadding/4 , blockWidth/2 - cornerRadius, -elbowCentertoSocketCutTop + cornerRadius - bigBlockHeight - ForearmDiameterWPadding/4])sphere(d=cornerRadius*2);
+                translate([ForearmDiameterWPadding/4 , -blockWidth/2 + cornerRadius, -elbowCentertoSocketCutTop + cornerRadius - bigBlockHeight - ForearmDiameterWPadding/4])sphere(d=cornerRadius*2);
+            }
+
+            //Add a shape for the secondary latch base to attach to
+            //translate([-ForearmDiameterWPadding/4  -5 ,0,-elbowCentertoSocketCutTop - 18/2])cube([ForearmDiameterWPadding/2 + 5,35,18],true);
+            hull() {
+                translate([-(ForearmDiameterWPadding/2 + blockThickness - cornerRadius), blockWidth/2 - cornerRadius, -elbowCentertoSocketCutTop - cornerRadius])sphere(d=cornerRadius*2);
+                translate([-(ForearmDiameterWPadding/2 + blockThickness - cornerRadius), -blockWidth/2 + cornerRadius, -elbowCentertoSocketCutTop - cornerRadius])sphere(d=cornerRadius*2);
+
+                translate([-(ForearmDiameterWPadding/2 + blockThickness - cornerRadius), blockWidth/2 - cornerRadius, -elbowCentertoSocketCutTop + cornerRadius - smallBlockHeight])sphere(d=cornerRadius*2);
+                translate([-(ForearmDiameterWPadding/2 + blockThickness - cornerRadius), -blockWidth/2 + cornerRadius, -elbowCentertoSocketCutTop + cornerRadius - smallBlockHeight])sphere(d=cornerRadius*2);
+
+                translate([-(ForearmDiameterWPadding/4), blockWidth/2 - cornerRadius, -elbowCentertoSocketCutTop - cornerRadius])sphere(d=cornerRadius*2);
+                translate([-(ForearmDiameterWPadding/4), -blockWidth/2 + cornerRadius, -elbowCentertoSocketCutTop - cornerRadius])sphere(d=cornerRadius*2);
+
+                translate([-(ForearmDiameterWPadding/4), blockWidth/2 - cornerRadius, -elbowCentertoSocketCutTop + cornerRadius - smallBlockHeight - ForearmDiameterWPadding])sphere(d=cornerRadius*2);
+                translate([-(ForearmDiameterWPadding/4), -blockWidth/2 + cornerRadius, -elbowCentertoSocketCutTop + cornerRadius - smallBlockHeight - ForearmDiameterWPadding])sphere(d=cornerRadius*2);
+            }
+
         }
 
+        //cut the slots for the larger latch base to slide into
+        translate([ForearmDiameterWPadding/2 + 3 ,0,-elbowCentertoSocketCutTop - 53/2])cube([3,28,55],true);
+        translate([ForearmDiameterWPadding/2 + 6 ,0,-elbowCentertoSocketCutTop - 45/2])cube([5,24,50],true);
+
+
+        // Cut a hole for the through bolt that holds latch bas in place. This is always a 5.5 mm hole, and it is always 48 mm from the top of the arm
+        translate([ForearmDiameterWPadding/2, 7.65,  - 48]) rotate(a=[90,0,90]) cylinder(d=5.5, h=ForearmDiameterWPadding/4,center=true, $fn=40);
+        translate([ForearmDiameterWPadding/2- ForearmDiameterWPadding/8, 7.65,  - 48]) rotate(a=[90,0,90]) cylinder(d=10, h=ForearmDiameterWPadding/4,center=true, $fn=40);
+
+        
+        //cut the slots for the smaller latch base to slide into
+        translate([-ForearmDiameterWPadding/2 - 3 ,0,-elbowCentertoSocketCutTop - elbowCentertoSocketCutTop/2])cube([3,28,17],true);
+        translate([-ForearmDiameterWPadding/2 - 6 ,0,-elbowCentertoSocketCutTop - 10/2])cube([5,24,14],true);
+
+
+        // Cut a hole for the through bolt that holds latch bas in place. This is always a 5.5 mm hole, and it is always 48 mm from the top of the arm
+        translate([-(ForearmDiameterWPadding/2), 0,  - 21]) rotate(a=[90,0,90]) cylinder(d=5.5, h=ForearmDiameterWPadding/4,center=true, $fn=40);
+        translate([-(ForearmDiameterWPadding/2 - ForearmDiameterWPadding/8), 0,  - 21]) rotate(a=[90,0,90]) cylinder(d=10, h=ForearmDiameterWPadding/4,center=true, $fn=40);
+        translate([-(ForearmDiameterWPadding/2+ ForearmDiameterWPadding/8+blockThickness/2), 0,  - 21]) rotate(a=[90,0,90]) cylinder(d=10, h=ForearmDiameterWPadding/4,center=true, $fn=40);
+    
 
         // the inner shell always leaves space for wrist bolt 
         //TODO this scale is not right
         wristdiameter = 53.39*HandScale;
 
-        difference() {
-            //Hollow out the center space 
-            MakeArmLoft(innerShell,(wristdiameter-10- 3*ArmShellThickness)/wristdiameter , 2, true);//WristBoltDia)/wristdiameter, 2);
-            
-            translate([ForearmDiameterWPadding/2+ArmShellThickness/2-ArmShellThickness,0,-29.75])cube([ArmShellThickness,34,60],true);
-            
-            translate([-ForearmDiameterWPadding/2+ArmShellThickness/2-ArmShellThickness,0,-29.75])cube([ArmShellThickness,25,59.5],true);
-        
-            wristdiameter = 53.39*HandScale;
-            //Add a cylinder for the wrist bolt threads to be cut from. 
-           //Add inner threads for wrist bolt holder
-            color("red")translate([0, -4*ForeArmCircumferenceScale, -ArmLength ]) cylinder(d = wristdiameter -4, h = writstBoltLength );
-    
-        }
-                
-        //Make hole for main latch Base to slide in
-        translate([ForearmDiameterWPadding/2,0,-29.75])cube([ForearmDiameterWPadding,24.8,59.5],true);
-        
-        //The inner shape is a trapezoid
-        trapezoid_points = [
-        [-12.4, -29.75],                // Bottom-left corner
-        [12.4, -29.75],     // Bottom-right corner
-        [17.5, 60.93-29.75],  // Top-left corner
-        [-17.5, 60.93-29.75]  // Top-right corner
-    ];
-        
-        translate([ForearmDiameterWPadding/2-10/2-ArmShellThickness,0,-29.75]) rotate(a=[90,0,90])linear_extrude(10, center = true) polygon(trapezoid_points);//add trapazoid shape
-        
-        // cut a triangle grove at the base of the latch base 
-        translate([ForearmDiameterWPadding/2-3.5,0,-59.5]) rotate(a=[45,0,90])cube([ 24.8, 3.5 , 3.5], center=true);
-        
-        //Cut outside of trapazoid to make sure consitent thickness of the shell at the point where the LAtch base slides over
-        translate([ForearmDiameterWPadding/2-10/2+10,0,-29.75]) rotate(a=[90,0,90])linear_extrude(10, center = true) polygon(trapezoid_points);//add trapazoid shape
-        
-        //Make hole for secondary latch Base to slide in
-        translate([-ForearmDiameterWPadding/2,0,-13.25])cube([ForearmDiameterWPadding,11,26.5],true);
-        translate([-ForearmDiameterWPadding/2-ArmShellThickness/2+ArmShellThickness,0,-13.25])cube([ArmShellThickness,25,26.5],true);
-        translate([-ForearmDiameterWPadding/2-ArmShellThickness/2-ArmShellThickness,0,-13.25])cube([ArmShellThickness,25,26.5],true);
-        translate([-ForearmDiameterWPadding/2-ArmShellThickness/2-ArmShellThickness,0,-13.8])rotate(a=[0,90,0])cylinder(d=35, h=ArmShellThickness,center=true);
-
+        MakeArmLoft(innerShell,(wristdiameter-10- 3*ArmShellThickness)/wristdiameter , 2, true);
         
         // Make slot for thread to go into arm
         // it is always a 4 mm hole. Note this is likly in Lower Arm section, but just to be sure

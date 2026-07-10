@@ -10,11 +10,9 @@
 // https://github.com/teejaydub/tjw-scad
 
 // Choose Part
-Part = "Cuff1"; // [Palm, Palm Top, Index Finger End, Index Finger Phalanx, Middle Finger End, Middle Finger Phalanx, Pinky Finger End, Pinky Finger Phalanx, Ring Finger End, Ring Finger Phalanx, Thumb End, Thumb Phalanx, Whippletree Primary, Whippletree Secondary, Pencil Holder Cover, Hinges, Palm Bolt, Upper Arm, Lower Arm, Cuff1, Cuff2, Cuff3, Cuff Leather Template, Elbow Bolt1, Elbow Bolt2, Cuff2 Hub, Grasp Latch Base, Grasp Latch Probe, Ratchet, Tensioner Probe, EA Tensioner Lever, EA Tensioner Hold, SA Tensioner Lever,SA Tensioner Hold, Wrist Button, Wrist Cover ]
+Part = "Cuff"; // [Palm, Palm Top, Index Finger End, Index Finger Phalanx, Middle Finger End, Middle Finger Phalanx, Pinky Finger End, Pinky Finger Phalanx, Ring Finger End, Ring Finger Phalanx, Thumb End, Thumb Phalanx, Whippletree Primary, Whippletree Secondary, Pencil Holder Cover, Hinges, Palm Bolt, Upper Arm, Lower Arm, Cuff, Cuff Leather Template, Cuff2 Hub, Grasp Latch Base, Grasp Latch Probe, Ratchet, Tensioner Probe, EA Tensioner Lever, EA Tensioner Hold, SA Tensioner Lever,SA Tensioner Hold, Wrist Button, Wrist Cover ]
 //Left or Right Arm
 LeftRight = "Right"; //[Right, Left]
-//Wraps are made from leather or plastic
-LeatherOrPlastic = "Leather"; //[Leather, Plastic]
 // Across all four knuckles (mm)
 HandWidth = 96; //[65:186]
 // Elbow crease to wrist attachment (mm)
@@ -31,6 +29,8 @@ BicepCircumference = 294; //[160: 600]
 PaddingThickness = 2; //[0: 10]
 // Include Pencil Holder
 PencilHolder = "No"; // [Yes,No]
+// Include Latch and Ratchet for String Tensioning
+IncludeLatch = "Latch"; //[Latch, No Latch or String]
 // Add Air Venting Holes In Upper Forearm
 UpperVentingHoles = "None"; // [None,VentingHoles1,VentingHoles2,VentingHoles3]
 // Add Air Venting Holes In Lower Forearm
@@ -73,7 +73,8 @@ ForearmDiameterWPadding = ForearmCircumferenceWPadding/PI;
 BicepCircumferenceWPadding = ((BicepCircumference/PI) + 2*PaddingThickness)*PI;
 BicepDiameterWPadding = BicepCircumferenceWPadding/PI;
 CuffScale = BicepCircumferenceWPadding/270;
-CuffLength = CuffScale * 90;
+TotalCuffLength =  ArmLength * 0.8 - StrapWidth;
+CuffLength = max (StrapWidth*2 + 14, TotalCuffLength -  ((ArmLength* 0.8 * 0.34) - StrapWidth/2));
 ArmLengthScale = ArmLength/271;
 
 
@@ -116,8 +117,6 @@ PART_MIRROR = 2;
 PART_ROTATION = 3;
 
 H_CUFF1 = 0;
-H_CUFF2 = 1;
-H_CUFF3 = 2;
 H_CUFF_LEATHER_TEMPLATE = 3;
 H_ARM_UPPER = 4;
 H_ARM_LOWER = 5;
@@ -151,9 +150,7 @@ H_PENCIL_HOLDER_COVER = 32;
 H_HINGES = 33;
 
 PART_SPECS = [
-    ["Cuff1", H_CUFF1, MIRROR_LEFT, [0,0,0]],
-    ["Cuff2", H_CUFF2, MIRROR_LEFT, [0,0,0]],
-    ["Cuff3", H_CUFF3, MIRROR_LEFT, [0,0,0]],
+    ["Cuff", H_CUFF1, MIRROR_LEFT, [0,0,0]],
     ["Cuff Leather Template", H_CUFF_LEATHER_TEMPLATE, MIRROR_LEFT, [0,0,0]],
     ["Upper Arm", H_ARM_UPPER, MIRROR_LEFT, [0,0,0]],
     ["Lower Arm", H_ARM_LOWER, MIRROR_LEFT, [0,0,0]],
@@ -161,7 +158,7 @@ PART_SPECS = [
     ["Tensioner Probe", H_TENSIONER_PROBE, MIRROR_LEFT, [0,0,0]],
     // This part was modeled as left, so mirror for right.
     ["SA Tensioner Lever", H_SA_TENSIONER_LEVER, MIRROR_RIGHT, [0,0,0]],
-    ["EA Tensioner Lever", H_EA_TENSIONER_LEVER, MIRROR_LEFT, [0,0,0]],
+    ["EA Tensioner Lever", H_EA_TENSIONER_LEVER, MIRROR_RIGHT, [0,0,0]],
     ["EA Tensioner Hold", H_EA_TENSIONER_HOLD, MIRROR_LEFT, [0,0,0]],
     ["SA Tensioner Hold", H_SA_TENSIONER_HOLD, MIRROR_LEFT, [0,0,0]],
     ["Cuff2 Hub", H_CUFF2_HUB, MIRROR_LEFT, [0,0,0]],
@@ -192,7 +189,11 @@ PART_SPECS = [
 
 function find_part_index(part_name) =
     let(matches = search([part_name], [for (spec = PART_SPECS) spec[PART_NAME]]))
-    len(matches) > 0 ? matches[0] : -1;
+    len(matches) > 0
+        ? (is_list(matches[0])
+            ? (len(matches[0]) > 0 ? matches[0][0] : -1)
+            : matches[0])
+        : -1;
 
 module apply_mirror(mirror_mode) {
     if (mirror_mode == MIRROR_LEFT) {
@@ -241,8 +242,6 @@ module render_lower_venting() {
 
 module run_part_handlers() {
     MakeCuff1();
-    MakeCuff2();
-    MakeCuff3();
     MakeCuffLeatherTemplate();
     MakeArmUpper();
     MakeArmLower();
@@ -271,7 +270,7 @@ module run_part_handlers() {
     ThumbEnd();
     ThumbPhalanx();
     WhippleTreePrimary();
-    WhippleTreeSecondary();
+    MakeWhippleTreeSecondary();
     PencilHolderCover();
     MakeHinges();
 }
@@ -279,10 +278,6 @@ module run_part_handlers() {
 module run_part_handler(handler_index) {
     if (handler_index == H_CUFF1) {
         MakeCuff1();
-    } else if (handler_index == H_CUFF2) {
-        MakeCuff2();
-    } else if (handler_index == H_CUFF3) {
-        MakeCuff3();
     } else if (handler_index == H_CUFF_LEATHER_TEMPLATE) {
         MakeCuffLeatherTemplate();
     } else if (handler_index == H_ARM_UPPER) {
@@ -340,7 +335,7 @@ module run_part_handler(handler_index) {
     } else if (handler_index == H_WHIPPLETREE_PRIMARY) {
         WhippleTreePrimary();
     } else if (handler_index == H_WHIPPLETREE_SECONDARY) {
-        WhippleTreeSecondary();
+        MakeWhippleTreeSecondary();
     } else if (handler_index == H_PENCIL_HOLDER_COVER) {
         PencilHolderCover();
     } else if (handler_index == H_HINGES) {
@@ -364,6 +359,13 @@ module render_selected_part() {
 }
 
 render_selected_part();
+
+module MakeWhippleTreeSecondary() {
+    difference() {
+        WhippleTreeSecondary();
+        import("o_WhippleTreeSecondary_CutTool.stl", convexity=3);
+    }
+}
     
 //***************************
 // MakeHinges() 
@@ -630,7 +632,7 @@ module MakeCuff2Hub() {
         
         //cut the threads clean at 9mm thickness
         translate([0, 0,  -5]) cylinder(d=10, h=10,center=true, $fn=20);
-        translate([0, 0,  14]) cylinder(d=10, h=10,center=true, $fn=20);
+        translate([0, 0,  11.5]) cylinder(d=10, h=10,center=true, $fn=20);
         }
    
    
@@ -719,7 +721,7 @@ union(){
     intersection(){
 
         translate([ (ForearmDiameterWPadding/2+ArmShellThickness+23.5/2),0,0])
-            rotate(a=[0,90,0])cylinder(h = 23.5, d = 42, $fn=40, center= true);
+            rotate(a=[0,90,0])cylinder(h = 23.5, d = 47, $fn=40, center= true);
         union(){
         translate([ (ForearmDiameterWPadding/2+ArmShellThickness+3),027/2,11])
             cube([6, 27, 22], center= true);
@@ -763,6 +765,63 @@ union(){
     translate([ (ForearmDiameterWPadding/4),ForearmDiameterWPadding/2,0])
     rotate(a=[90,0,0])cylinder(h =ForearmDiameterWPadding*2, d = 5, $fn=40, center= true);
     
+  
+  }
+
+
+}
+
+
+//***************************
+// MakeEATensionerLever() 
+//***************************
+module MakeEATensionerLever() {
+
+difference(){
+union(){
+
+    //outside hoop end
+    translate([ (ForearmDiameterWPadding/2+ArmShellThickness+23.5/2),0,0]) rotate(a=[0,90,0]) cylinder(h = 23.5, d = 29, $fn=40, center= true);
+    translate([ (ForearmDiameterWPadding/2+ArmShellThickness+3), 38.5/2,0]) cube([6, 38.5, 16], center= true);
+    translate([ (ForearmDiameterWPadding/2+ArmShellThickness+3)-1, 93.5/2,0]) cube([4, 93.5, 16], center= true);
+
+    translate([ (ForearmDiameterWPadding/2+ArmShellThickness+3)-1, 93.5,-8])
+                rotate(a=[0,0,-90]) linear_extrude(16)
+                    polygon(points=[[0,-4],[4,0],[0,4]], paths=[[0,1,2]]);
+
+    //Top two loop connector on outside hoop end 
+    intersection(){
+
+        translate([ (ForearmDiameterWPadding/2+ArmShellThickness+23.5/2),0,0])
+            rotate(a=[0,90,0])cylinder(h = 23.5, d = 47, $fn=40, center= true);
+        union(){
+        translate([ (ForearmDiameterWPadding/2+ArmShellThickness+3),027/2,11])
+            cube([6, 27, 22], center= true);
+        translate([ (ForearmDiameterWPadding/2+ArmShellThickness+12),2,0])
+            cube([26, 15.5, 44], center= true);
+            }
+            
+         translate([ (ForearmDiameterWPadding/2+ArmShellThickness+12),2,11])
+            cube([26, 44, 22], center= true);
+        }
+     } //close main union of building
+
+     
+    // cut outside hoop end
+    translate([ (ForearmDiameterWPadding/2+ArmShellThickness+15/2 + 6),0,0])
+    rotate(a=[0,90,0])cylinder(h = 15, d = 29.1, $fn=40, center= true);
+ 
+    translate([ (ForearmDiameterWPadding/2+ArmShellThickness+ 1.5),0,0])
+    rotate(a=[0,90,0])cylinder(h = 4, d = 29.1, $fn=40, center= true);
+    
+    translate([ (ForearmDiameterWPadding/2+15),0,0])
+    rotate(a=[0,90,0])cylinder(h = 30, d = 14, $fn=40, center= true);
+    
+    translate([ (ForearmDiameterWPadding/2+ArmShellThickness+ 1.5),0,0])
+    rotate(a=[65,0,0])cube([4, 6.5*2, 100], center= true);
+    
+    translate([ (ForearmDiameterWPadding/2+ArmShellThickness+15/2 + 6),0,0])
+    rotate(a=[-65,0,0])cube([15, 13*2, 100], center= true);
   
   }
 
@@ -1019,10 +1078,10 @@ module MakeArmUpper() {
 
     elbowCentertoSocketCutTop = 13;
     cornerRadius = 4;
-    blockThickness = 7;
-    bigBlockHeight = 55;
+    blockThickness = 6;
+    bigBlockHeight = 54;
     smallBlockHeight = 18;
-    blockWidth = 35;
+    blockWidth = 33;
     
     difference() {
         union(){
@@ -1087,11 +1146,11 @@ module MakeArmUpper() {
         }
 
         //cut the slots for the larger latch base to slide into
-        translate([ForearmDiameterWPadding/2 + 3 ,0,-elbowCentertoSocketCutTop - 53/2])cube([3,28,55],true);
+        translate([ForearmDiameterWPadding/2 + 3 ,0,-elbowCentertoSocketCutTop - 50/2])cube([3,28,55],true);
         translate([ForearmDiameterWPadding/2 + 6 ,0,-elbowCentertoSocketCutTop - 45/2])cube([5,24,50],true);
 
 
-        // Cut a hole for the through bolt that holds latch bas in place. This is always a 5.5 mm hole, and it is always 48 mm from the top of the arm
+        // Cut a hole for the through bolt that holds latch base in place. This is always a 5.5 mm hole, and it is always 48 mm from the top of the arm
         translate([ForearmDiameterWPadding/2, 7.65,  - 48]) rotate(a=[90,0,90]) cylinder(d=5.5, h=ForearmDiameterWPadding/4,center=true, $fn=40);
         translate([ForearmDiameterWPadding/2- ForearmDiameterWPadding/8, 7.65,  - 48]) rotate(a=[90,0,90]) cylinder(d=10, h=ForearmDiameterWPadding/4,center=true, $fn=40);
 
@@ -1101,21 +1160,25 @@ module MakeArmUpper() {
         translate([-ForearmDiameterWPadding/2 - 6 ,0,-elbowCentertoSocketCutTop - 10/2])cube([5,24,14],true);
 
 
-        // Cut a hole for the through bolt that holds latch bas in place. This is always a 5.5 mm hole, and it is always 48 mm from the top of the arm
+        // Cut a hole for the through bolt that holds latch base in place. This is always a 5.5 mm hole, and it is always 48 mm from the top of the arm
         translate([-(ForearmDiameterWPadding/2), 0,  - 21]) rotate(a=[90,0,90]) cylinder(d=5.5, h=ForearmDiameterWPadding/4,center=true, $fn=40);
         translate([-(ForearmDiameterWPadding/2 - ForearmDiameterWPadding/8), 0,  - 21]) rotate(a=[90,0,90]) cylinder(d=10, h=ForearmDiameterWPadding/4,center=true, $fn=40);
         translate([-(ForearmDiameterWPadding/2+ ForearmDiameterWPadding/8+blockThickness/2), 0,  - 21]) rotate(a=[90,0,90]) cylinder(d=10, h=ForearmDiameterWPadding/4,center=true, $fn=40);
     
+        difference() {
 
-        // the inner shell always leaves space for wrist bolt 
-        //TODO this scale is not right
-        wristdiameter = 53.39*HandScale;
+            // the inner shell always leaves space for wrist bolt 
+            //TODO this scale is not right
+            wristdiameter = 53.39*HandScale;
+            MakeArmLoft(innerShell,(wristdiameter-10- 3*ArmShellThickness)/wristdiameter , 2, true);
+            //Add back the  cylinder for the wrist bolt threads to be cut from. 
+            translate([0, -4*ForeArmCircumferenceScale, -ArmLength ]) cylinder(d = wristdiameter -4, h = writstBoltLength );
 
-        MakeArmLoft(innerShell,(wristdiameter-10- 3*ArmShellThickness)/wristdiameter , 2, true);
+        }
         
         // Make slot for thread to go into arm
         // it is always a 4 mm hole. Note this is likly in Lower Arm section, but just to be sure
-        translate([ ForearmDiameterWPadding/4, 0, -ArmLength + 40]) rotate(a=[45,0,90]) cylinder(d=4, h=ForearmDiameterWPadding,center=true, $fn=20);
+        translate([ ForearmDiameterWPadding/4, 0, -ArmLength + 40]) rotate(a=[45,0,90]) cylinder(d=4, h=ForearmDiameterWPadding/2,center=true, $fn=20);
 
         // Check if the upper arm is the entire arm
         if(ArmSplitLength < ArmLength) {
@@ -1145,18 +1208,18 @@ module MakeArmUpper() {
           wristdiameter = 53.39*HandScale;
           //Countersink 5mm in for the head of the  wrist bolt pin, note the pin is always a #4 or 3mm sheet metal screw
           translate([ForearmDiameterWPadding/4 + wristdiameter/2 - 5, -4*ForeArmCircumferenceScale, -ArmLength + 5.9]) 
-          rotate(a=[0,90,0]) cylinder(d=6.5, h=ForearmDiameterWPadding/2,center=true, $fn=20);
+            rotate(a=[0,90,0]) cylinder(d=6.5, h=ForearmDiameterWPadding/2,center=true, $fn=20);
             
         }
         
                 
-    if(UpperVentingHoles != "None") {
-        apply_venting_transform() render_upper_venting();
-    }
+        if(UpperVentingHoles != "None") {
+            apply_venting_transform() render_upper_venting();
+        }
 
-    if(LowerVentingHoles != "None") {
-        apply_venting_transform() render_lower_venting();
-    }
+        if(LowerVentingHoles != "None") {
+            apply_venting_transform() render_lower_venting();
+        }
     }
    
     // Check if the upper arm is the entire arm
@@ -1232,8 +1295,7 @@ module MakeArmShell(smoothness) {
     
     wristdiameter = 53.39*HandScale;
     //Add a cylinder for the wrist bolt threads to be cut from. 
-   //Add inner threads for wrist bolt holder
-    translate([0, -4*ForeArmCircumferenceScale, -ArmLength ]) cylinder(d = wristdiameter -4, h = writstBoltLength );
+    color("red")translate([0, -4*ForeArmCircumferenceScale, -ArmLength ]) cylinder(d = wristdiameter -4, h = writstBoltLength );
 }
 
 module MakeArmLip() {
@@ -1353,7 +1415,7 @@ if(ArmSplitLength < ArmLength) {
     
     // Make hole for thread to go into arm
     // it is always a 4 mm hole
-    translate([ ForearmDiameterWPadding/4, 0, -ArmLength + 40]) rotate(a=[45,0,90]) cylinder(d=4, h=ForearmDiameterWPadding,center=true, $fn=20);
+    translate([ ForearmDiameterWPadding/4, 0, -ArmLength + 40]) rotate(a=[45,0,90]) cylinder(d=4, h=ForearmDiameterWPadding/2,center=true, $fn=20);
     
     
      
@@ -1396,49 +1458,13 @@ module MakeCuffslots1() {
 //***************************
 module MakeCuffBase(oneOrTwo, CuffWidth, CuffYoffset, offset, height) {
 
+    cuffImportOffset = 25*ElbowPartsScale - 60*ElbowPartsScale +1;
+    cuffFlatStart = TotalCuffLength - CuffLength + cuffImportOffset -20;
+    cuffFlatEnd = TotalCuffLength + cuffImportOffset - 20;
     
     difference() {
-        union() {//91.5
-            
-        if(LeatherOrPlastic != "Leather")
-        translate([CuffScale  * 49, CuffYoffset , 0 ])
-             difference() {
-                 union() {
-                // the plate with slots
-                difference() {
-                    translate([0, 0 , 0 ]) cube([ CuffLength, CuffWidth, ShellThickness]);
-
-                    MakeCuffslots1();
-                }
-
-                if(oneOrTwo == 1) {
-                    //solid on end
-                    translate([0, 0 , 0 ])cube([ CuffLength, 3*CuffScale, ShellThickness/2]);
-
-                    //lip on leading edge to glue on other stiffener
-                    translate([0, BicepCircumferenceWPadding/2 -CuffYoffset - 5.5*CuffScale- CuffScale * 0.25 , 0 ])cube([ CuffLength, 5.25*CuffScale , ShellThickness]);
-                    translate([CuffLength, BicepCircumferenceWPadding/2 -CuffYoffset  - 1.25*CuffScale, ShellThickness ])
-                    rotate(a=[90,-90,-90]) linear_extrude(CuffLength)
-                        polygon(points=[[0,-1*CuffScale],[3*CuffScale,0],[0,1*CuffScale]], paths=[[0,1,2]]);
-                    
-                     
-                } else {
-                    
-                    //Solid end
-                    translate([0, BicepCircumferenceWPadding/2  -SlotSpacing - CuffScale * 8.5 - CuffScale * 4  , 0 ])cube([ CuffLength, SlotSpacing , ShellThickness]);
-                }
-            }
-            
-            if(oneOrTwo == 1){
-                
-                //Cut angle off glueable triangle end
-                translate([CuffLength-  7*CuffScale, BicepCircumferenceWPadding/2 -CuffYoffset - 8.5*CuffScale- CuffScale * 0.25 , ShellThickness+ 7*CuffScale ])rotate(a=[0,45,0])cube([ CuffScale*10, CuffScale*10 , CuffScale*10]);
-            }
-            
-
-            
-        }
-
+        union() {
+ 
         // import cuff bolt holder
         if(oneOrTwo == 1) {
             MakeCuff1Imports();
@@ -1450,159 +1476,106 @@ module MakeCuffBase(oneOrTwo, CuffWidth, CuffYoffset, offset, height) {
         
         // cuff stiffener
         hull() {
-            rotate(a=[90,-90,-90]) translate([10,3.5, -CuffScale  * 49 -1])cylinder(d=4, h=1);
-            rotate(a=[90,-90,-90]) translate([10,-3.5, -CuffScale  * 49 -1])cylinder(d=4, h=1);
+            rotate(a=[90,-90,-90]) translate([10,3.5, -cuffFlatStart -1])cylinder(d=4, h=1);
+            rotate(a=[90,-90,-90]) translate([10,-3.5, -cuffFlatStart -1])cylinder(d=4, h=1);
             
-            translate([CuffScale  * 49,-(11)/2,0])cube([CuffLength ,  11, ShellThickness,]);
-            translate([ CuffScale  * 49 +CuffLength - 10*CuffScale, 3.5, 10])sphere(d=4);
-            translate([CuffScale  * 49 +CuffLength - 10*CuffScale, -3.5, 10 ])sphere(d=4);
+            translate([cuffFlatEnd - CuffLength,-(11)/2,0])cube([CuffLength ,  11, ShellThickness,]);
+
+            translate([cuffFlatStart +CuffLength - 7, 3.5, 10])sphere(d=4);
+            translate([cuffFlatStart +CuffLength - 7, -3.5, 10 ])sphere(d=4);
             
         }
         
         
         hull() {
-            rotate(a=[90,-90,-90]) translate([10,3.5, -CuffScale  * 49 -1])cylinder(d=4, h=1);
-            rotate(a=[90,-90,-90]) translate([10,-3.5, -CuffScale  * 49 -1])cylinder(d=4, h=1);
-            rotate(a=[90,-90,-90]) translate([2,3.5, -CuffScale  * 49-1])cylinder(d=4, h=1);
-            rotate(a=[90,-90,-90]) translate([2,-3.5, -CuffScale  * 49-1])cylinder(d=4, h=1);
+            topOfConnector = max (0, cuffFlatStart + 1);
+            rotate(a=[90,-90,-90]) translate([10,3.5, -topOfConnector])cylinder(d=4, h=1);
+            rotate(a=[90,-90,-90]) translate([10,-3.5, -topOfConnector])cylinder(d=4, h=1);
+            rotate(a=[90,-90,-90]) translate([2,3.5, -cuffFlatStart-1])cylinder(d=4, h=1);
+            rotate(a=[90,-90,-90]) translate([2,-3.5, -cuffFlatStart-1])cylinder(d=4, h=1);
             
-            translate([25*ElbowPartsScale - 60*ElbowPartsScale +1,(12/2) - 1.5, offset+12*ElbowPartsScale + 1*ElbowPartsScale]) sphere(d=2);
-           
-            translate([25*ElbowPartsScale - 60*ElbowPartsScale +1 ,-(12/2) + 1.5, offset+12*ElbowPartsScale + 1*ElbowPartsScale]) sphere(d=2);
-        
-         translate([25*ElbowPartsScale - 60*ElbowPartsScale +1,(12/2) - 1.5, offset+height+11*ElbowPartsScale - 2*ElbowPartsScale]) sphere(d=2);
-           
-            translate([25*ElbowPartsScale - 60*ElbowPartsScale +1,-(12/2) + 1.5, offset+height+11*ElbowPartsScale - 2*ElbowPartsScale]) sphere(d=2);
+            translate([cuffImportOffset,(12/2) - 1.5, offset+12*ElbowPartsScale + 1*ElbowPartsScale]) sphere(d=2);
+            translate([cuffImportOffset,-(12/2) + 1.5, offset+12*ElbowPartsScale + 1*ElbowPartsScale]) sphere(d=2);
+            translate([cuffImportOffset,(12/2) - 1.5, offset+height+11*ElbowPartsScale - 2*ElbowPartsScale]) sphere(d=2);
+            translate([cuffImportOffset,-(12/2) + 1.5, offset+height+11*ElbowPartsScale - 2*ElbowPartsScale]) sphere(d=2);
             
             }
         }
 
-        //slots for strap
-        //translate([CuffScale  * 49 +CuffLength/2 - (StrapWidth + 1) /2,+ BicepCircumferenceWPadding/2 -12*CuffScale  , ShellThickness-8 ])cube([ StrapWidth + 1, 24*CuffScale, 30*ShellThickness]);
-        
-        //slots for strap
-        translate([CuffScale  * 49 +CuffLength/2 - (StrapWidth + 1) /2, -12*CuffScale  , -ShellThickness +9])cube([ StrapWidth + 1, 24*CuffScale, 30*ShellThickness]);
-        
-        //slots for strap
-        //translate([CuffScale  * 49 +CuffLength/2 - (StrapWidth + 1) /2,+ BicepCircumferenceWPadding/2 -12*CuffScale  , ShellThickness-8 ])cube([ StrapWidth + 1, 24*CuffScale, -CuffYoffset]);
-        
-        if(oneOrTwo == 1 || oneOrTwo == 2) {
-            
-            if(LeatherOrPlastic != "Leather") {
-                // Cut opening for the other edge to glue in
-              translate([CuffScale  * 49 -0.5,  - CuffScale * 0.25 + CuffScale  * -8.5 , -1.75 ])cube([ CuffLength +2, 8.25*CuffScale +.2, ShellThickness+2]);
+        difference() {
+
+            union() {
+
+                //slots for strap
+                translate([cuffFlatStart + StrapWidth/2 - (StrapWidth + 1) /2, -12*CuffScale  , -ShellThickness +9])cube([ StrapWidth + 1, 24*CuffScale, 3.5]);
                 
-              translate([CuffScale  * 49 + CuffLength +0.5,  +8.25*CuffScale + CuffScale  * -8.5  - 1.25*CuffScale, ShellThickness ])
-                    rotate(a=[90,-90,-90]) linear_extrude(CuffLength + 2)
-                    polygon(points=[[-0.1,-1*CuffScale-.2],[3*CuffScale+.2,0],[-0.1,1*CuffScale+.2]], paths=[[0,1,2]]);
-            } else {
-                // Cut bottom float for the leather to fit in.
-              //translate([CuffScale  * 49 -0.5,  - CuffScale * 0.25 + CuffScale  * -8.5 , -1.75 ])cube([ CuffLength +2, 17*CuffScale +.2, ShellThickness+2]);
-                
-                //Cut the two holes for the leather rivets to go through
-                translate([CuffScale  * 49 +CuffLength/5 , 0  , -ShellThickness ])
-                cylinder(d=RivetShaftDiameter + 0.5, h = 200*CuffScale, center=true, $fn=30);
-                
-                translate([CuffScale  * 49 + 4*CuffLength/5, 0  , -ShellThickness ])
-                cylinder(d=RivetShaftDiameter + 0.5, h = 200*CuffScale, center=true, $fn=30);
-                
+                //slots for strap
+                translate([cuffFlatEnd -  StrapWidth/2 - 10 - (StrapWidth + 1) /2, -12*CuffScale  , -ShellThickness +9])cube([ StrapWidth + 1, 24*CuffScale, 5]);
             }
+
+            // fill in over slots for straps with a new rounded cover
+            hull() {
+                rotate(a=[90,-90,-90]) translate([10.5,4, -cuffFlatStart - StrapWidth/2 - (StrapWidth + 3) /2])cylinder(d=3, h=StrapWidth + 3);
+                rotate(a=[90,-90,-90]) translate([10.5,-4, -cuffFlatStart - StrapWidth/2 - (StrapWidth + 3) /2])cylinder(d=3, h=StrapWidth + 3);
+                
+                rotate(a=[90,-90,-90]) translate([10.5,4, -cuffFlatEnd + StrapWidth/2 +10  - (StrapWidth + 3) /2])cylinder(d=3, h=StrapWidth + 3);
+                rotate(a=[90,-90,-90]) translate([10.5,-4, -cuffFlatEnd +  StrapWidth/2 + 10  - (StrapWidth + 3) /2])cylinder(d=3, h=StrapWidth + 3);
+            }
+
         }
-        
-        if(LeatherOrPlastic == "Leather") {
-        //cut ShellThickness off the bottom of entire part. For this leather version the leather itself willadd that back on.
-            translate([0,-BicepCircumferenceWPadding/2 , -1])cube([ CuffLength *2, BicepCircumferenceWPadding*2, ShellThickness + 1]);
-        }
+
+            //Cut the two holes for the leather rivets to go through
+            translate([cuffFlatStart + StrapWidth/2 , 0  , -ShellThickness ])
+            cylinder(d=RivetShaftDiameter + 0.5, h = 200*CuffScale, center=true, $fn=30);
+            
+            translate([cuffFlatEnd -  StrapWidth/2 - 10, 0  , -ShellThickness ])
+            cylinder(d=RivetShaftDiameter + 0.5, h = 200*CuffScale, center=true, $fn=30);
+
+            //countersink the first hole if really short arm. This is to make sure the rivet head does not stick out of the cuff.
+            translate([cuffFlatStart + StrapWidth/2 , 0  , 200*CuffScale/2 +ShellThickness +10])
+                cylinder(d=10.5, h = 200*CuffScale, center=true, $fn=30);
+            
 
     }
 
-    // fill in over slots for straps with a new rounded cover
-    hull() {
-        rotate(a=[90,-90,-90]) translate([10.5,3.75, -CuffScale  * 49 -CuffLength/2 - (StrapWidth + 3) /2])cylinder(d=3, h=StrapWidth + 3);
-        rotate(a=[90,-90,-90]) translate([10.5,-3.75, -CuffScale  * 49 -CuffLength/2 - (StrapWidth + 3) /2])cylinder(d=3, h=StrapWidth + 3);
-        
-        //rotate(a=[90,-90,-90]) translate([9.5,3.5, -CuffScale  * 49 -CuffLength/2 - (StrapWidth + 3) /2])cylinder(d=4, h=StrapWidth + 3);
-        //rotate(a=[90,-90,-90]) translate([9.5,-3.5, -CuffScale  * 49 -CuffLength/2 - (StrapWidth + 3) /2])cylinder(d=4, h=StrapWidth + 3);
-    }
 }
 
-
-//***************************
-// MakeCuffFlap() 
-//***************************
-module MakeCuffFlap( CuffWidth, CuffYoffset) {
-    
-    difference() {
-        union() {//91.5
-        translate([CuffScale  * 49, CuffYoffset , 0 ])
-             difference() {
-                 union() {
-                // the plate with slots
-                difference() {
-                    translate([0, 0 , 0 ]) cube([ CuffLength, CuffWidth, ShellThickness]);
-                    
-
-                    MakeCuffslots1();
-                }
-
-                //solid on end
-                translate([0, 0 , 0 ])cube([ CuffLength, 3*CuffScale, ShellThickness]);
-
-                //lip on leading edge to glue on other stiffener
-                translate([0, BicepCircumferenceWPadding/2 -CuffYoffset - 5.5*CuffScale, 0 ])cube([ CuffLength, 5.25*CuffScale , ShellThickness]);
-                translate([CuffLength, BicepCircumferenceWPadding/2 -CuffYoffset  - 1.25*CuffScale, ShellThickness ])
-                rotate(a=[90,-90,-90]) linear_extrude(CuffLength)
-                    polygon(points=[[0,-1*CuffScale],[3*CuffScale,0],[0,1*CuffScale]], paths=[[0,1,2]]);
-                    
-                     
- 
-            }
-            
-
-            //Cut angle off glueable triangle end
-            translate([CuffLength-  7*CuffScale, BicepCircumferenceWPadding/2 -CuffYoffset - 8.5*CuffScale- CuffScale * 0.25 , ShellThickness+ 7*CuffScale ])rotate(a=[0,45,0])cube([ CuffScale*10, CuffScale*10 , CuffScale*10]);
-            
-        }
-    }
-       
-        //slots for strap
-    //translate([CuffScale  * 49 +CuffLength/2 - (StrapWidth + 1) /2,+ BicepCircumferenceWPadding/2 -7*CuffScale  , ShellThickness-8 ])cube([ StrapWidth + 1, 14*CuffScale, 30*ShellThickness]);
-        
-    }
-   
-
-}
 
 //***************************
 // MakeCuffLeatherTemplate() 
 //***************************
 module MakeCuffLeatherTemplate() {
     
-    if(LeatherOrPlastic == "Leather") {
+    cuffImportOffset = 25*ElbowPartsScale - 60*ElbowPartsScale +1;
+    cuffFlatStart = TotalCuffLength - CuffLength + cuffImportOffset -20;
+    cuffFlatEnd = TotalCuffLength + cuffImportOffset - 20;
+    cuffWidth = BicepCircumferenceWPadding/2  - CuffScale * 0.25;
+
+    CuffYStart = - cuffWidth/2;
+    CuffYEnd = CuffYStart + cuffWidth*2;
         
-        // the outline of the whole cuff
-        polygonpoints = [[0,-2*BicepCircumferenceWPadding/6],[CuffLength,-2*BicepCircumferenceWPadding/6],[CuffLength,5*BicepCircumferenceWPadding/6],[0,5*BicepCircumferenceWPadding/6]];
+    // the outline of the whole cuff
+    polygonpoints = [[cuffFlatStart,CuffYStart],[cuffFlatEnd,CuffYStart],[cuffFlatEnd,CuffYEnd],[cuffFlatStart,CuffYEnd]];
       
       difference() {  
         polygon(polygonpoints, paths=[[0,1,2,3]]);
         
         //circles for the four holes for the leather rivets to go through
-        translate([CuffLength/5 , 0  ])
+        translate([cuffFlatStart + StrapWidth/2, 0  ])
         circle(d=RivetShaftDiameter + 0.5, $fn=30);
         
-        translate([4*CuffLength/5, 0])
+        translate([cuffFlatEnd -  StrapWidth/2 - 10, 0])
         circle(d=RivetShaftDiameter + 0.5, $fn=30);
         
-        translate([CuffLength/5 , BicepCircumferenceWPadding/2])
+        translate([cuffFlatStart + StrapWidth/2, BicepCircumferenceWPadding/2])
         circle(d=RivetShaftDiameter + 0.5, $fn=30);
         
-        translate([4*CuffLength/5, BicepCircumferenceWPadding/2])
+        translate([cuffFlatEnd -  StrapWidth/2 - 10, BicepCircumferenceWPadding/2])
         circle(d=RivetShaftDiameter + 0.5, $fn=30);
           
-          echo(" far hole", 4*CuffLength/5);
       }
-        
-    }
+ 
+    
 }
 
 //***************************
@@ -1610,33 +1583,26 @@ module MakeCuffLeatherTemplate() {
 //***************************
 module MakeCuff1() {
     
-     offset = max(-12 *ElbowPartsScale + ArmShellThickness,  - (  BicepDiameterWPadding- ForearmDiameterWPadding)/2-13 *ElbowPartsScale + ArmShellThickness +12);
-        
-    MakeCuffBase(1, BicepCircumferenceWPadding/2  - CuffScale * 0.25, 0, offset, 20.5);
+    cuffWidth = BicepCircumferenceWPadding/2  - CuffScale * 0.25;
+    cuffImportOffset = 25*ElbowPartsScale - 60*ElbowPartsScale +1;
+    cuffFlatStart = TotalCuffLength - CuffLength + cuffImportOffset -20;
+    offset1 = max(-8 *ElbowPartsScale + ArmShellThickness,  - (  BicepDiameterWPadding- ForearmDiameterWPadding)/2-8 *ElbowPartsScale + ArmShellThickness +12);
+    offset2 = max(-12 *ElbowPartsScale + ArmShellThickness,  - (  BicepDiameterWPadding- ForearmDiameterWPadding)/2-13 *ElbowPartsScale + ArmShellThickness +12);
 
-}
+    if(IncludeLatch == "Latch") {
+            
+        MakeCuffBase(1, cuffWidth, 0, offset1, 20.5);
+    } else {
+       mirror([0,1,0]) MakeCuffBase(2, 0, CuffScale  * -5.5, offset2, 7.5);
+    }
 
-//***************************
-// MakeCuff2() 
-//***************************
-module MakeCuff2() {
+    translate([0, cuffWidth,0])MakeCuffBase(2, 0, CuffScale  * -5.5, offset2, 7.5);
+
+    //make the flat part of the cuff that goes under the arm. This is a simple rectangle
+    translate([cuffFlatStart, 0 , 0 ]) cube([ CuffLength, cuffWidth -RivetShaftDiameter/2, ShellThickness]);
     
-    offset = max(-12 *ElbowPartsScale + ArmShellThickness,  - (  BicepDiameterWPadding- ForearmDiameterWPadding)/2-13 *ElbowPartsScale + ArmShellThickness +12);
-  
-    MakeCuffBase(2, BicepCircumferenceWPadding/2 - CuffScale * 8.5 - CuffScale * 4, CuffScale  * -5.5, offset, 7.5);
 
 }
-
-//***************************
-// MakeCuff3() 
-//***************************
-module MakeCuff3() {
-    
-    if(LeatherOrPlastic != "Leather")
-        MakeCuffFlap( BicepCircumferenceWPadding/4 - CuffScale * 5.75, BicepCircumferenceWPadding/4 + CuffScale  * 5.5 );
-
-}
-
 
 
 //***************************
@@ -2028,8 +1994,6 @@ module ThumbPhalanx() {scale([HandScale,HandScale,HandScale]) import("o_ThumbPha
 module WhippleTreePrimary() {scale([HandScale,1.0,1.0]) import("o_WhippleTreePrimary.stl", convexity=3);}
 
 module WhippleTreeSecondary() {scale([HandScale,1.0,1.0]) import("o_WhippleTreeSecondary.stl", convexity=3);}
-
-module MakeEATensionerLever() { import("o_EATensionerLever.stl", convexity=3); }
 
 module MakeEATensionerHold(){ import("o_EATensionerHold.stl", convexity=3); }
 
